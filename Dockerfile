@@ -11,6 +11,10 @@ RUN bun install
 # Copy source
 COPY . .
 
+# Build argument for API URL
+ARG VITE_API_BASE_URL=https://three-damo-production.up.railway.app
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
 # Build
 RUN bun run build
 
