@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Hands } from '@mediapipe/hands'
 
 const GESTURES = {
   THUMBS_UP: '👍',
@@ -80,22 +81,17 @@ export default function GestureControl({ onGesture, isActive, hideUI = false }) 
         setIsLoading(true)
         setError(null)
 
-        // 动态导入 MediaPipe Hands
-        console.log('开始加载 MediaPipe Hands...')
-        const { Hands } = await import('@mediapipe/hands')
-        console.log('MediaPipe Hands 加载成功', Hands)
-
-        if (!Hands) {
-          throw new Error('MediaPipe Hands 导入失败')
-        }
-
+        // 使用本地 npm 包初始化 MediaPipe Hands
+        console.log('开始初始化 MediaPipe Hands...')
+        
         // 初始化 MediaPipe Hands
         const hands = new Hands({
           locateFile: (file) => {
-            // 使用 unpkg CDN 作为备用，更稳定
-            return `https://unpkg.com/@mediapipe/hands@0.4.1646424915/${file}`
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`
           }
         })
+        
+        console.log('MediaPipe Hands 初始化成功')
 
         hands.setOptions({
           maxNumHands: 1,
