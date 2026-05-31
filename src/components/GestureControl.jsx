@@ -84,7 +84,8 @@ export default function GestureControl({ onGesture, isActive, hideUI = false }) 
         // 初始化 MediaPipe Hands
         const hands = new Hands({
           locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            // 使用 unpkg CDN 作为备用，更稳定
+            return `https://unpkg.com/@mediapipe/hands@0.4.1646424915/${file}`
           }
         })
 
