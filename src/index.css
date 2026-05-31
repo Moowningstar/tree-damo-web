@@ -21,12 +21,25 @@ body {
   height: 100dvh;
 }
 
+/* 隐藏 EdgeOne 或其他平台注入的横幅 */
+body > div:not(#root) {
+  display: none !important;
+}
+
+/* 更具体地隐藏包含特定文本的元素 */
+[class*="banner"],
+[class*="notice"],
+[id*="banner"],
+[id*="notice"] {
+  display: none !important;
+}
+
 /* 移动端触摸优化 */
 @layer utilities {
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
-  
+
   .touch-manipulation {
     touch-action: manipulation;
   }

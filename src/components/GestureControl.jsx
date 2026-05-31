@@ -167,6 +167,13 @@ export default function GestureControl({ onGesture, isActive, hideUI = false }) 
         // 启动摄像头 - 使用标准 getUserMedia API 以提高移动端兼容性
         if (videoRef.current) {
           try {
+            console.log('开始请求摄像头权限...')
+
+            // 检查浏览器是否支持
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+              throw new Error('您的浏览器不支持摄像头访问')
+            }
+
             // 请求摄像头权限
             const stream = await navigator.mediaDevices.getUserMedia({
               video: {
@@ -175,6 +182,8 @@ export default function GestureControl({ onGesture, isActive, hideUI = false }) 
                 facingMode: 'user' // 前置摄像头
               }
             })
+
+            console.log('摄像头权限获取成功')
 
             videoRef.current.srcObject = stream
             await videoRef.current.play()
@@ -201,12 +210,26 @@ export default function GestureControl({ onGesture, isActive, hideUI = false }) 
             setIsLoading(false)
           } catch (cameraErr) {
             console.error('Camera access error:', cameraErr)
-            throw new Error(`摄像头访问失败: ${cameraErr.message}`)
+            let errorMsg = '无法访问摄像头'
+
+            if (cameraErr.name === 'NotAllowedError') {
+              errorMsg = '摄像头权限被拒绝，请在浏览器设置中允许访问摄像头'
+            } else if (cameraErr.name === 'NotFoundError') {
+              errorMsg = '未找到摄像头设备'
+            } else if (cameraErr.name === 'NotReadableError') {
+              errorMsg = '摄像头正在被其他应用使用'
+            } else if (cameraErr.name === 'SecurityError') {
+              errorMsg = '安全限制：请确保网站使用 HTTPS 访问'
+            } else {
+              errorMsg = `摄像头访问失败: ${cameraErr.message}`
+            }
+
+            throw new Error(errorMsg)
           }
         }
       } catch (err) {
         console.error('Camera initialization error:', err)
-        setError(`无法访问摄像头: ${err.message}。请确保已授予摄像头权限。`)
+        setError(err.message || '无法访问摄像头，请检查权限设置')
         setIsLoading(false)
       }
     }
