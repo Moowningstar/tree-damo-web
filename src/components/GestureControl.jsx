@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { Hands } from '@mediapipe/hands'
 
 const GESTURES = {
   THUMBS_UP: '👍',
@@ -7,6 +6,59 @@ const GESTURES = {
   FIST: '✊',
   PEACE: '✌️',
   OK: '👌'
+}
+
+// 从 CDN 加载 MediaPipe Hands（使用多个备用源）
+const loadMediaPipeHands = () => {
+  return new Promise((resolve, reject) => {
+    // 检查是否已加载
+    if (window.Hands) {
+      resolve(window.Hands)
+      return
+    }
+
+    // CDN 备用列表（按优先级排序）
+    const cdnUrls = [
+      'https://unpkg.com/@mediapipe/hands@0.4.1646424915/hands.js',
+      'https://fastly.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js',
+      'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js'
+    ]
+
+    let currentIndex = 0
+
+    const tryLoadFromCDN = () => {
+      if (currentIndex >= cdnUrls.length) {
+        reject(new Error('所有 CDN 源均加载失败，请检查网络连接'))
+        return
+      }
+
+      const script = document.createElement('script')
+      script.src = cdnUrls[currentIndex]
+      script.crossOrigin = 'anonymous'
+
+      script.onload = () => {
+        if (window.Hands) {
+          console.log(`MediaPipe Hands 从 CDN ${currentIndex + 1} 加载成功`)
+          resolve(window.Hands)
+        } else {
+          console.warn(`CDN ${currentIndex + 1} 加载失败，尝试下一个...`)
+          currentIndex++
+          tryLoadFromCDN()
+        }
+      }
+
+      script.onerror = () => {
+        console.warn(`CDN ${currentIndex + 1} 加载失败，尝试下一个...`)
+        document.head.removeChild(script)
+        currentIndex++
+        tryLoadFromCDN()
+      }
+
+      document.head.appendChild(script)
+    }
+
+    tryLoadFromCDN()
+  })
 }
 
 export default function GestureControl({ onGesture, isActive, hideUI = false }) {
@@ -81,13 +133,16 @@ export default function GestureControl({ onGesture, isActive, hideUI = false }) 
         setIsLoading(true)
         setError(null)
 
-        // 使用本地 npm 包初始化 MediaPipe Hands
-        console.log('开始初始化 MediaPipe Hands...')
-        
+        // 从 CDN 加载 MediaPipe Hands（带备用源）
+        console.log('开始加载 MediaPipe Hands...')
+        const Hands = await loadMediaPipeHands()
+        console.log('MediaPipe Hands 加载成功')
+
         // 初始化 MediaPipe Hands
         const hands = new Hands({
           locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`
+            // 使用 unpkg 作为模型文件源（国内访问较稳定）
+            return `https://unpkg.com/@mediapipe/hands@0.4.1646424915/${file}`
           }
         })
         
