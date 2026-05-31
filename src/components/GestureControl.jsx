@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { Hands } from '@mediapipe/hands'
 
 const GESTURES = {
   THUMBS_UP: '👍',
@@ -23,7 +22,7 @@ export default function GestureControl({ onGesture, isActive, hideUI = false }) 
     if (!landmarks || landmarks.length === 0) return null
 
     const hand = landmarks[0]
-    
+
     // 获取关键点
     const thumb_tip = hand[4]
     const thumb_ip = hand[3]
@@ -63,7 +62,7 @@ export default function GestureControl({ onGesture, isActive, hideUI = false }) 
 
     // OK 手势 👌
     const thumbIndexDistance = Math.sqrt(
-      Math.pow(thumb_tip.x - index_tip.x, 2) + 
+      Math.pow(thumb_tip.x - index_tip.x, 2) +
       Math.pow(thumb_tip.y - index_tip.y, 2)
     )
     if (thumbIndexDistance < 0.05 && isMiddleUp && isRingUp && isPinkyUp) {
@@ -80,6 +79,15 @@ export default function GestureControl({ onGesture, isActive, hideUI = false }) 
       try {
         setIsLoading(true)
         setError(null)
+
+        // 动态导入 MediaPipe Hands
+        console.log('开始加载 MediaPipe Hands...')
+        const { Hands } = await import('@mediapipe/hands')
+        console.log('MediaPipe Hands 加载成功', Hands)
+
+        if (!Hands) {
+          throw new Error('MediaPipe Hands 导入失败')
+        }
 
         // 初始化 MediaPipe Hands
         const hands = new Hands({
