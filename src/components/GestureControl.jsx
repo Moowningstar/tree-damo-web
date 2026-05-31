@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { Hands } from '@mediapipe/hands'
-import { Camera } from '@mediapipe/camera_utils'
 
 const GESTURES = {
   THUMBS_UP: '👍',
@@ -165,23 +164,49 @@ export default function GestureControl({ onGesture, isActive, hideUI = false }) 
 
         handsRef.current = hands
 
-        // 启动摄像头
+        // 启动摄像头 - 使用标准 getUserMedia API 以提高移动端兼容性
         if (videoRef.current) {
-          const camera = new Camera(videoRef.current, {
-            onFrame: async () => {
-              await hands.send({ image: videoRef.current })
-            },
-            width: 640,
-            height: 480
-          })
-          
-          await camera.start()
-          cameraRef.current = camera
-          setIsLoading(false)
+          try {
+            // 请求摄像头权限
+            const stream = await navigator.mediaDevices.getUserMedia({
+              video: {
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                facingMode: 'user' // 前置摄像头
+              }
+            })
+
+            videoRef.current.srcObject = stream
+            await videoRef.current.play()
+
+            // 创建帧处理循环
+            const processFrame = async () => {
+              if (videoRef.current && videoRef.current.readyState === 4) {
+                await hands.send({ image: videoRef.current })
+              }
+              if (cameraRef.current) {
+                requestAnimationFrame(processFrame)
+              }
+            }
+
+            cameraRef.current = {
+              stream,
+              stop: () => {
+                stream.getTracks().forEach(track => track.stop())
+                cameraRef.current = null
+              }
+            }
+
+            requestAnimationFrame(processFrame)
+            setIsLoading(false)
+          } catch (cameraErr) {
+            console.error('Camera access error:', cameraErr)
+            throw new Error(`摄像头访问失败: ${cameraErr.message}`)
+          }
         }
       } catch (err) {
         console.error('Camera initialization error:', err)
-        setError('无法访问摄像头，请检查权限设置')
+        setError(`无法访问摄像头: ${err.message}。请确保已授予摄像头权限。`)
         setIsLoading(false)
       }
     }
