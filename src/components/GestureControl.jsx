@@ -61,7 +61,7 @@ const loadMediaPipeHands = () => {
   })
 }
 
-export default function GestureControl({ onGesture, isActive, hideUI = false }) {
+export default function GestureControl({ onGesture, onLandmarks, isActive, hideUI = false }) {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const [currentGesture, setCurrentGesture] = useState(null)
@@ -209,7 +209,12 @@ export default function GestureControl({ onGesture, isActive, hideUI = false }) 
               ctx.fill()
             })
 
-            // 识别手势
+            // 传递原始 landmarks 数据（用于高级手势识别）
+            if (onLandmarks) {
+              onLandmarks(results.multiHandLandmarks)
+            }
+
+            // 识别简单手势（向后兼容）
             const gesture = recognizeGesture(results.multiHandLandmarks)
             if (gesture && gesture !== currentGesture) {
               setCurrentGesture(gesture)

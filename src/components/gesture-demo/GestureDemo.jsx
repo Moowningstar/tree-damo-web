@@ -341,7 +341,7 @@ export default function GestureDemo() {
       {/* Gesture Control (hidden UI, only processing) */}
       <GestureControl
         isActive={gestureActive}
-        onGesture={handleGestureData}
+        onLandmarks={handleGestureData}
         hideUI={true}
       />
       
