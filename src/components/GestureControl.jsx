@@ -211,6 +211,7 @@ export default function GestureControl({ onGesture, onLandmarks, isActive, hideU
 
             // 传递原始 landmarks 数据（用于高级手势识别）
             if (onLandmarks) {
+              console.log('📤 [GestureControl] Sending landmarks to callback, count:', results.multiHandLandmarks.length);
               onLandmarks(results.multiHandLandmarks)
             }
 
@@ -218,6 +219,7 @@ export default function GestureControl({ onGesture, onLandmarks, isActive, hideU
             const gesture = recognizeGesture(results.multiHandLandmarks)
             if (gesture && gesture !== currentGesture) {
               setCurrentGesture(gesture)
+              console.log('🎭 [GestureControl] Simple gesture:', gesture);
               onGesture?.(gesture)
             }
           } else {

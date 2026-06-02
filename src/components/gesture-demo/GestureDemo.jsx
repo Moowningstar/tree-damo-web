@@ -49,29 +49,40 @@ export default function GestureDemo() {
   
   // Handle gesture data from GestureControl
   const handleGestureData = (landmarks) => {
-    if (!interpreterRef.current) return;
+    console.log('🔍 [GestureDemo] Received landmarks:', landmarks ? 'YES' : 'NO', landmarks?.length);
+    
+    if (!interpreterRef.current) {
+      console.warn('⚠️ [GestureDemo] Interpreter not initialized');
+      return;
+    }
     
     const gestureData = interpreterRef.current.interpret(landmarks);
+    
+    console.log('🎯 [GestureDemo] Interpreted gesture:', gestureData);
     
     setCurrentGesture(gestureData.type);
     
     switch (gestureData.type) {
       case 'scroll':
+        console.log('📜 [GestureDemo] Executing scroll, velocity:', gestureData.velocity);
         scrollControllerRef.current?.execute(gestureData);
         setCursorPosition(gestureData.position);
         break;
         
       case 'pointing':
+        console.log('👆 [GestureDemo] Executing click, clicking:', gestureData.clicking);
         clickControllerRef.current?.execute(gestureData);
         setCursorPosition(gestureData.position);
         break;
         
       case 'selection-ready':
+        console.log('✍️ [GestureDemo] Selection ready');
         selectionControllerRef.current?.execute(gestureData);
         setCursorPosition(gestureData.position);
         break;
         
       case 'zoom':
+        console.log('🔍 [GestureDemo] Executing zoom, scale:', gestureData.scale);
         zoomControllerRef.current?.execute(gestureData);
         if (gestureData.position) {
           setCursorPosition(gestureData.position);
@@ -79,7 +90,7 @@ export default function GestureDemo() {
         break;
         
       case 'fist':
-        // 握拳手势 - 关闭缩放或停止选择
+        console.log('✊ [GestureDemo] Fist detected - closing zoom/selection');
         zoomControllerRef.current?.close?.();
         selectionControllerRef.current?.reset?.();
         break;
