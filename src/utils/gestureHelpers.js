@@ -4,6 +4,9 @@
  * 计算两点之间的欧氏距离
  */
 export function calculateDistance(point1, point2) {
+  if (!point1 || !point2 || point1.x === undefined || point2.x === undefined) {
+    return 0;
+  }
   const dx = point1.x - point2.x;
   const dy = point1.y - point2.y;
   const dz = (point1.z || 0) - (point2.z || 0);
@@ -14,6 +17,9 @@ export function calculateDistance(point1, point2) {
  * 计算手指是否伸展（基于关键点 Y 轴位置）
  */
 export function isFingerExtended(tip, mcp) {
+  if (!tip || !mcp || tip.y === undefined || mcp.y === undefined) {
+    return false;
+  }
   return tip.y < mcp.y;
 }
 
@@ -50,6 +56,9 @@ export function throttle(func, limit) {
  * 将手部坐标映射到屏幕坐标
  */
 export function mapHandToScreen(handPoint) {
+  if (!handPoint || handPoint.x === undefined || handPoint.y === undefined) {
+    return { x: 0, y: 0 };
+  }
   return {
     x: handPoint.x * window.innerWidth,
     y: handPoint.y * window.innerHeight
