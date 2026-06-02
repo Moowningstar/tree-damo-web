@@ -66,14 +66,22 @@ export default function GestureDemo() {
         setCursorPosition(gestureData.position);
         break;
         
-      case 'selecting':
+      case 'selection-ready':
         selectionControllerRef.current?.execute(gestureData);
         setCursorPosition(gestureData.position);
         break;
         
-      case 'pinch':
+      case 'zoom':
         zoomControllerRef.current?.execute(gestureData);
-        setCursorPosition(gestureData.position);
+        if (gestureData.position) {
+          setCursorPosition(gestureData.position);
+        }
+        break;
+        
+      case 'fist':
+        // 握拳手势 - 关闭缩放或停止选择
+        zoomControllerRef.current?.close?.();
+        selectionControllerRef.current?.reset?.();
         break;
         
       default:
