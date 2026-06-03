@@ -129,6 +129,7 @@ export default function GestureDemo() {
     scrollControllerRef.current?.deactivate();
     clickControllerRef.current?.deactivate();
     selectionControllerRef.current?.deactivate();
+    zoomControllerRef.current?.deactivate();
 
     // 根据区域激活特定 controller
     switch (activeZone) {
@@ -145,7 +146,7 @@ export default function GestureDemo() {
         console.log('✍️ [GestureDemo] Selection zone activated');
         break;
       case 'zoom':
-        // ZoomController 不需要 activate
+        zoomControllerRef.current?.activate();
         console.log('🔍 [GestureDemo] Zoom zone activated');
         break;
     }
@@ -453,6 +454,14 @@ export default function GestureDemo() {
                   <div
                     key={id}
                     data-zoomable={id}
+                    onClick={() => {
+                      // 鼠标点击切换缩放状态
+                      if (zoomImage === id) {
+                        setZoomImage(null); // 如果已经选中，取消选中
+                      } else {
+                        setZoomImage(id); // 选中该图片
+                      }
+                    }}
                     className={`
                       relative aspect-square rounded-2xl overflow-hidden cursor-pointer
                       transition-all duration-300 transform hover:scale-105
@@ -477,7 +486,7 @@ export default function GestureDemo() {
               <div className="bg-gradient-to-br from-pink-500/30 to-purple-500/30 backdrop-blur-md rounded-3xl p-8 border-2 border-pink-400/30">
                 <div className="text-center">
                   <p className="text-xl text-pink-200 mb-2">
-                    使用两指捏合手势放大图片
+                    张开手掌放大 | 握拳缩小 | 鼠标点击选择
                   </p>
                   <p className="text-lg text-gray-300">
                     当前状态: {zoomImage ? `正在查看 ${zoomImage}` : '未选择图片'}

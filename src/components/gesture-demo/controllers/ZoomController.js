@@ -28,13 +28,22 @@ export class ZoomController {
    * @param {Object} gestureData - { action: 'zoom-in' | 'zoom-out', screenPosition }
    */
   execute(gestureData) {
-    if (!this.isActive) return;
+    console.log('[ZoomController] execute called, isActive:', this.isActive, 'action:', gestureData.action);
+
+    if (!this.isActive) {
+      console.warn('[ZoomController] Not active, skipping');
+      return;
+    }
 
     const screenPos = gestureData.screenPosition || { x: 0, y: 0 };
+    console.log('[ZoomController] screenPos:', screenPos);
+
     const element = document.elementFromPoint(screenPos.x, screenPos.y);
+    console.log('[ZoomController] element at position:', element?.tagName, element?.dataset);
 
     // 检查是否是可缩放的图片
     const zoomableImage = element?.closest('[data-zoomable]');
+    console.log('[ZoomController] zoomableImage found:', zoomableImage?.dataset.zoomable);
 
     if (!zoomableImage) {
       console.log('[ZoomController] No zoomable image at cursor position');
@@ -52,6 +61,7 @@ export class ZoomController {
     if (!this.originalTransform.has(zoomableImage)) {
       const currentTransform = window.getComputedStyle(zoomableImage).transform;
       this.originalTransform.set(zoomableImage, currentTransform);
+      console.log('[ZoomController] Saved original transform:', currentTransform);
     }
 
     // 根据手势动作缩放
