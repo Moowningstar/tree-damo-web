@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import GestureControl from '../GestureControl';
 import { GestureInterpreter } from './GestureInterpreter';
+import { interpretGestureForZone } from './ZoneAwareGestureInterpreter';
 import ScrollController from './controllers/ScrollController';
 import ClickController from './controllers/ClickController';
 import SelectionController from './controllers/SelectionController';
@@ -152,99 +153,59 @@ export default function GestureDemo() {
 
   // Handle gesture data from GestureControl
   const handleGestureData = (landmarks) => {
-    if (!interpreterRef.current) {
-      console.warn('⚠️ [GestureDemo] Interpreter not initialized');
+    if (!interpreterRef.current || !landmarks || landmarks.length === 0) {
       return;
     }
 
-    const gestureData = interpreterRef.current.interpret(landmarks);
+    // 首先获取手部位置用于区域检测和虚拟光标
+    const hand = landmarks[0];
+    const indexTip = hand[8];
 
-    // 将手部坐标映射到屏幕坐标（用于虚拟光标）
+    const screenPos = {
+      x: (1 - indexTip.x) * window.innerWidth,  // 镜像翻转 X 轴
+      y: indexTip.y * window.innerHeight
+    };
+    setCursorPosition(screenPos);
+
+    // 更新悬停元素（添加悬停样式）
+    updateHoveredElement(screenPos);
+
+    // 检测当前在哪个区域
     let currentZone = activeZone;
-    if (gestureData.position) {
-      const screenPos = {
-        x: (1 - gestureData.position.x) * window.innerWidth,  // 镜像翻转 X 轴
-        y: gestureData.position.y * window.innerHeight
-      };
-      setCursorPosition(screenPos);
-
-      // 更新悬停元素（添加悬停样式）
-      updateHoveredElement(screenPos);
-
-      // 检测当前在哪个区域
-      const zone = detectZone(screenPos);
-      if (zone !== activeZone) {
-        setActiveZone(zone);
-        currentZone = zone;
-        console.log('🎯 [GestureDemo] Zone changed:', zone);
-      }
+    const zone = detectZone(screenPos);
+    if (zone !== activeZone) {
+      setActiveZone(zone);
+      currentZone = zone;
+      console.log('🎯 [GestureDemo] Zone changed:', zone);
     }
 
-    // 只在对应区域执行对应的手势（区域优先级过滤）
+    // 不在任何区域时，只显示虚拟光标，不执行任何动作
     if (!currentZone) {
-      // 不在任何区域时，只显示虚拟光标，不执行任何动作
-      // 这是正常情况，不需要警告
       return;
     }
 
-    // 根据区域过滤手势类型，确保每个区域只响应其核心手势
-    let filteredGestureType = gestureData.type;
-
-    switch (currentZone) {
-      case 'scroll':
-        // 滚动区域：只接受 scroll 手势
-        if (gestureData.type !== 'scroll' && gestureData.type !== 'fist') {
-          console.log(`[Filter] In scroll zone, ignoring ${gestureData.type}`);
-          return;
-        }
-        break;
-
-      case 'click':
-        // 点击区域：只接受 pointing 手势
-        if (gestureData.type !== 'pointing' && gestureData.type !== 'fist') {
-          console.log(`[Filter] In click zone, ignoring ${gestureData.type}`);
-          return;
-        }
-        break;
-
-      case 'selection':
-        // 选择区域：只接受 selection-ready 手势
-        if (gestureData.type !== 'selection-ready' && gestureData.type !== 'fist') {
-          console.log(`[Filter] In selection zone, ignoring ${gestureData.type}`);
-          return;
-        }
-        break;
-
-      case 'zoom':
-        // 缩放区域：只接受 zoom 手势
-        if (gestureData.type !== 'zoom' && gestureData.type !== 'fist') {
-          console.log(`[Filter] In zoom zone, ignoring ${gestureData.type}`);
-          return;
-        }
-        break;
-    }
+    // 使用区域感知的手势解释器（每个区域有自己的优先级）
+    const gestureData = interpretGestureForZone(interpreterRef.current, landmarks, currentZone);
 
     // 只在手势类型变化时输出日志
-    if (filteredGestureType !== currentGesture) {
-      console.log('🎯 [GestureDemo] Gesture changed:', filteredGestureType);
+    if (gestureData.type !== currentGesture) {
+      console.log('🎯 [GestureDemo] Gesture changed:', gestureData.type, 'in zone:', currentZone);
     }
 
-    setCurrentGesture(filteredGestureType);
+    setCurrentGesture(gestureData.type);
 
-    // 调试：显示当前状态
-    console.log(`[DEBUG] currentZone: ${currentZone}, gestureType: ${filteredGestureType}`);
-
-    switch (filteredGestureType) {
+    // 执行对应的手势动作
+    switch (gestureData.type) {
       case 'scroll':
         console.log('✅ [GestureDemo] Executing scroll');
         scrollControllerRef.current?.execute(gestureData);
         break;
 
       case 'pointing':
-        console.log('✅ [GestureDemo] Executing click', cursorPosition);
+        console.log('✅ [GestureDemo] Executing click at', screenPos);
         clickControllerRef.current?.execute({
           ...gestureData,
-          screenPosition: cursorPosition
+          screenPosition: screenPos
         });
         break;
 
@@ -252,19 +213,26 @@ export default function GestureDemo() {
         console.log('✅ [GestureDemo] Executing selection');
         selectionControllerRef.current?.execute({
           ...gestureData,
-          screenPosition: cursorPosition
+          screenPosition: screenPos
         });
         break;
 
       case 'zoom':
-        console.log('✅ [GestureDemo] Executing zoom');
-        zoomControllerRef.current?.execute(gestureData);
+        console.log('✅ [GestureDemo] Executing zoom, action:', gestureData.action);
+        zoomControllerRef.current?.execute({
+          ...gestureData,
+          screenPosition: screenPos
+        });
         break;
 
       case 'fist':
-        console.log('✊ [GestureDemo] Fist detected - closing zoom/selection');
+        console.log('✊ [GestureDemo] Fist detected - reset');
         zoomControllerRef.current?.close?.();
         selectionControllerRef.current?.reset?.();
+        break;
+
+      case 'none':
+        // 没有识别到手势，不执行任何操作
         break;
     }
   };

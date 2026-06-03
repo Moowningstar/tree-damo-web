@@ -43,8 +43,7 @@ export class GestureInterpreter {
     const hand = landmarks[0];
 
     // 按优先级检测手势
-    const zoomGesture = this.detectZoomGesture(hand);
-    if (zoomGesture) return zoomGesture;
+    // 调整顺序：zoom 放到最后，避免与 scroll 冲突
 
     const selectionGesture = this.detectSelectionGesture(hand);
     if (selectionGesture) return selectionGesture;
@@ -54,6 +53,10 @@ export class GestureInterpreter {
 
     const scrollGesture = this.detectScrollGesture(hand);
     if (scrollGesture) return scrollGesture;
+
+    // zoom 最后检测（与 scroll 手势相似，需要通过区域过滤区分）
+    const zoomGesture = this.detectZoomGesture(hand);
+    if (zoomGesture) return zoomGesture;
 
     return { type: 'none' };
   }
