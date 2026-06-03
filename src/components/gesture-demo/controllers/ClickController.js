@@ -7,7 +7,8 @@ export class ClickController {
     this.hoveredElement = null;
     this.lastClickTime = 0;
     this.clickCooldown = 500; // 500ms 冷却时间
-    
+    this.hoverTimer = null; // 停留计时器
+
     // 防抖处理悬停检测
     this.debouncedHoverCheck = debounce(this.checkHover.bind(this), 50);
   }
@@ -25,6 +26,12 @@ export class ClickController {
   deactivate() {
     this.isActive = false;
     this.clearHover();
+
+    // 清除停留计时器
+    if (this.hoverTimer) {
+      clearTimeout(this.hoverTimer);
+      this.hoverTimer = null;
+    }
   }
 
   /**
@@ -41,8 +48,35 @@ export class ClickController {
     // 处理悬停状态
     this.debouncedHoverCheck(screenPos);
 
-    // 检测点击动作
+    // 获取当前光标下的元素
+    const element = document.elementFromPoint(screenPos.x, screenPos.y);
+
+    if (element && this.isClickable(element)) {
+      // 如果虚拟光标在可点击元素上，启动停留计时器
+      if (!this.hoverTimer) {
+        console.log('[ClickController] Starting hover timer for element:', element.tagName);
+        this.hoverTimer = setTimeout(() => {
+          console.log('[ClickController] Hover timeout - auto clicking!');
+          this.handleClick(screenPos);
+          this.hoverTimer = null;
+        }, 800); // 停留 800ms 后自动点击
+      }
+    } else {
+      // 离开可点击元素时清除计时器
+      if (this.hoverTimer) {
+        console.log('[ClickController] Left clickable element - clearing timer');
+        clearTimeout(this.hoverTimer);
+        this.hoverTimer = null;
+      }
+    }
+
+    // 如果检测到 Z 轴点击动作（向前戳），立即触发点击
     if (gestureData.clicking) {
+      console.log('[ClickController] Z-axis click detected!');
+      if (this.hoverTimer) {
+        clearTimeout(this.hoverTimer);
+        this.hoverTimer = null;
+      }
       this.handleClick(screenPos);
     }
   }
