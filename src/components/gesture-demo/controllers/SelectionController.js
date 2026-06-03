@@ -53,8 +53,9 @@ export class SelectionController {
    */
   execute(gestureData) {
     if (!this.isActive) return;
-    
-    const screenPos = mapHandToScreen(gestureData.position);
+
+    // 使用已经映射好的屏幕坐标
+    const screenPos = gestureData.screenPosition || { x: 0, y: 0 };
     const now = Date.now();
 
     switch (this.state) {

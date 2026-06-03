@@ -166,15 +166,22 @@ export default function GestureDemo() {
 
       case 'pointing':
         if (currentZone === 'click') {
-          console.log('✅ [GestureDemo] Executing click');
-          clickControllerRef.current?.execute(gestureData);
+          console.log('✅ [GestureDemo] Executing click', cursorPosition);
+          // 传递屏幕坐标而不是归一化坐标
+          clickControllerRef.current?.execute({
+            ...gestureData,
+            screenPosition: cursorPosition
+          });
         }
         break;
 
       case 'selection-ready':
         if (currentZone === 'selection') {
           console.log('✅ [GestureDemo] Executing selection');
-          selectionControllerRef.current?.execute(gestureData);
+          selectionControllerRef.current?.execute({
+            ...gestureData,
+            screenPosition: cursorPosition
+          });
         }
         break;
 

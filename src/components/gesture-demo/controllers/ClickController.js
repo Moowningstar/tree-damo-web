@@ -32,12 +32,15 @@ export class ClickController {
    */
   execute(gestureData) {
     if (!this.isActive) return;
-    
-    const screenPos = mapHandToScreen(gestureData.position);
-    
+
+    // 使用已经映射好的屏幕坐标
+    const screenPos = gestureData.screenPosition || { x: 0, y: 0 };
+
+    console.log('[ClickController] screenPos:', screenPos, 'clicking:', gestureData.clicking);
+
     // 处理悬停状态
     this.debouncedHoverCheck(screenPos);
-    
+
     // 检测点击动作
     if (gestureData.clicking) {
       this.handleClick(screenPos);
