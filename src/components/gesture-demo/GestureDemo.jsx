@@ -34,11 +34,7 @@ export default function GestureDemo() {
     selectionControllerRef.current = new SelectionController();
     zoomControllerRef.current = new ZoomController();
 
-    // Setup controller callbacks
-    clickControllerRef.current.onExecute = () => {
-      setClickCount(prev => prev + 1);
-    };
-
+    // Setup controller callbacks (only for features that need it)
     selectionControllerRef.current.onTextSelected = (text) => {
       setSelectedText(text);
     };
@@ -307,6 +303,7 @@ export default function GestureDemo() {
               <div className="grid grid-cols-3 gap-6">
                 <button
                   data-clickable="button-1"
+                  onClick={() => setClickCount(prev => prev + 1)}
                   className="h-32 bg-gradient-to-br from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold text-2xl rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-2xl"
                 >
                   按钮 1
@@ -314,6 +311,7 @@ export default function GestureDemo() {
 
                 <button
                   data-clickable="button-2"
+                  onClick={() => setClickCount(prev => prev + 1)}
                   className="h-32 bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold text-2xl rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-2xl"
                 >
                   按钮 2
@@ -321,6 +319,7 @@ export default function GestureDemo() {
 
                 <button
                   data-clickable="button-3"
+                  onClick={() => setClickCount(prev => prev + 1)}
                   className="h-32 bg-gradient-to-br from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold text-2xl rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-2xl"
                 >
                   按钮 3
