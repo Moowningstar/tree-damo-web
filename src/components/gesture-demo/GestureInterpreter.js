@@ -176,56 +176,52 @@ export class GestureInterpreter {
   }
 
   /**
-   * 检测缩放手势：✌️ 两指距离变化
+   * 检测缩放手势：✋ 张开手掌 = 放大, ✊ 握拳 = 缩小
    */
   detectZoomGesture(hand) {
+    const thumb_tip = hand[4];
     const index_tip = hand[8];
     const middle_tip = hand[12];
     const ring_tip = hand[16];
     const pinky_tip = hand[20];
     const index_mcp = hand[5];
 
-    // 食指和中指伸展，无名指和小指收起
-    const twoFingersExtended =
+    // 检查所有手指是否伸展（张开手掌）
+    const allFingersExtended =
+      isFingerExtended(thumb_tip, hand[3]) &&
       isFingerExtended(index_tip, index_mcp) &&
       isFingerExtended(middle_tip, index_mcp) &&
+      isFingerExtended(ring_tip, index_mcp) &&
+      isFingerExtended(pinky_tip, index_mcp);
+
+    // 检查是否握拳（所有手指收起）
+    const isFist =
+      !isFingerExtended(thumb_tip, hand[3]) &&
+      !isFingerExtended(index_tip, index_mcp) &&
+      !isFingerExtended(middle_tip, index_mcp) &&
       !isFingerExtended(ring_tip, index_mcp) &&
       !isFingerExtended(pinky_tip, index_mcp);
 
-    if (!twoFingersExtended) {
-      // 检查是否握拳（关闭缩放）
-      const isFist = 
-        !isFingerExtended(index_tip, index_mcp) &&
-        !isFingerExtended(middle_tip, index_mcp) &&
-        !isFingerExtended(ring_tip, index_mcp) &&
-        !isFingerExtended(pinky_tip, index_mcp);
-      
-      if (isFist) {
-        return { type: 'fist' };
-      }
-      
-      return null;
+    if (allFingersExtended) {
+      // 张开手掌 = 放大
+      return {
+        type: 'zoom',
+        action: 'zoom-in',  // 放大
+        position: {
+          x: (thumb_tip.x + index_tip.x + middle_tip.x + ring_tip.x + pinky_tip.x) / 5,
+          y: (thumb_tip.y + index_tip.y + middle_tip.y + ring_tip.y + pinky_tip.y) / 5
+        }
+      };
+    } else if (isFist) {
+      // 握拳 = 缩小
+      return {
+        type: 'zoom',
+        action: 'zoom-out',  // 缩小
+        position: index_tip
+      };
     }
 
-    // 计算两指距离
-    const distance = calculateDistance(index_tip, middle_tip);
-
-    // 计算距离变化（用于判断放大/缩小）
-    const previousFrame = this.getPreviousFrame();
-    let distanceChange = 0;
-    
-    if (previousFrame) {
-      const prevHand = previousFrame.landmarks[0];
-      const prevDistance = calculateDistance(prevHand[8], prevHand[12]);
-      distanceChange = distance - prevDistance;
-    }
-
-    return {
-      type: 'zoom',
-      distance,
-      distanceChange,
-      scale: Math.max(0.5, Math.min(3, distance * 10)) // 映射到 0.5x - 3x
-    };
+    return null;
   }
 }
 
