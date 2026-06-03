@@ -118,15 +118,8 @@ export default function GestureDemo() {
 
     const gestureData = interpreterRef.current.interpret(landmarks);
 
-    // 只在手势类型变化时输出日志，避免过度输出
-    if (gestureData.type !== currentGesture) {
-      console.log('🎯 [GestureDemo] Gesture changed:', gestureData.type);
-    }
-
-    setCurrentGesture(gestureData.type);
-
     // 将手部坐标映射到屏幕坐标（用于虚拟光标）
-    let currentZone = activeZone; // 使用本地变量而不是状态
+    let currentZone = activeZone;
     if (gestureData.position) {
       const screenPos = {
         x: gestureData.position.x * window.innerWidth,
@@ -138,54 +131,89 @@ export default function GestureDemo() {
       const zone = detectZone(screenPos);
       if (zone !== activeZone) {
         setActiveZone(zone);
-        currentZone = zone; // 立即更新本地变量
+        currentZone = zone;
         console.log('🎯 [GestureDemo] Zone changed:', zone);
       }
     }
 
-    // 调试：显示当前状态
-    console.log(`[DEBUG] currentZone: ${currentZone}, gestureType: ${gestureData.type}`);
-
-    // 只在对应区域执行对应的手势
+    // 只在对应区域执行对应的手势（区域优先级过滤）
     if (!currentZone) {
       console.warn('⚠️ [GestureDemo] No active zone detected');
       return;
     }
 
-    switch (gestureData.type) {
+    // 根据区域过滤手势类型，确保每个区域只响应其核心手势
+    let filteredGestureType = gestureData.type;
+
+    switch (currentZone) {
       case 'scroll':
-        if (currentZone === 'scroll') {
-          console.log('✅ [GestureDemo] Executing scroll');
-          scrollControllerRef.current?.execute(gestureData);
+        // 滚动区域：只接受 scroll 手势
+        if (gestureData.type !== 'scroll' && gestureData.type !== 'fist') {
+          console.log(`[Filter] In scroll zone, ignoring ${gestureData.type}`);
+          return;
         }
         break;
 
-      case 'pointing':
-        if (currentZone === 'click') {
-          console.log('✅ [GestureDemo] Executing click', cursorPosition);
-          // 传递屏幕坐标而不是归一化坐标
-          clickControllerRef.current?.execute({
-            ...gestureData,
-            screenPosition: cursorPosition
-          });
+      case 'click':
+        // 点击区域：只接受 pointing 手势
+        if (gestureData.type !== 'pointing' && gestureData.type !== 'fist') {
+          console.log(`[Filter] In click zone, ignoring ${gestureData.type}`);
+          return;
         }
         break;
 
-      case 'selection-ready':
-        if (currentZone === 'selection') {
-          console.log('✅ [GestureDemo] Executing selection');
-          selectionControllerRef.current?.execute({
-            ...gestureData,
-            screenPosition: cursorPosition
-          });
+      case 'selection':
+        // 选择区域：只接受 selection-ready 手势
+        if (gestureData.type !== 'selection-ready' && gestureData.type !== 'fist') {
+          console.log(`[Filter] In selection zone, ignoring ${gestureData.type}`);
+          return;
         }
         break;
 
       case 'zoom':
-        if (currentZone === 'zoom') {
-          console.log('✅ [GestureDemo] Executing zoom');
-          zoomControllerRef.current?.execute(gestureData);
+        // 缩放区域：只接受 zoom 手势
+        if (gestureData.type !== 'zoom' && gestureData.type !== 'fist') {
+          console.log(`[Filter] In zoom zone, ignoring ${gestureData.type}`);
+          return;
         }
+        break;
+    }
+
+    // 只在手势类型变化时输出日志
+    if (filteredGestureType !== currentGesture) {
+      console.log('🎯 [GestureDemo] Gesture changed:', filteredGestureType);
+    }
+
+    setCurrentGesture(filteredGestureType);
+
+    // 调试：显示当前状态
+    console.log(`[DEBUG] currentZone: ${currentZone}, gestureType: ${filteredGestureType}`);
+
+    switch (filteredGestureType) {
+      case 'scroll':
+        console.log('✅ [GestureDemo] Executing scroll');
+        scrollControllerRef.current?.execute(gestureData);
+        break;
+
+      case 'pointing':
+        console.log('✅ [GestureDemo] Executing click', cursorPosition);
+        clickControllerRef.current?.execute({
+          ...gestureData,
+          screenPosition: cursorPosition
+        });
+        break;
+
+      case 'selection-ready':
+        console.log('✅ [GestureDemo] Executing selection');
+        selectionControllerRef.current?.execute({
+          ...gestureData,
+          screenPosition: cursorPosition
+        });
+        break;
+
+      case 'zoom':
+        console.log('✅ [GestureDemo] Executing zoom');
+        zoomControllerRef.current?.execute(gestureData);
         break;
 
       case 'fist':
