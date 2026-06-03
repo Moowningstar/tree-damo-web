@@ -5,16 +5,19 @@ export class ScrollController {
   constructor() {
     this.isActive = false;
     this.currentVelocity = 0;
-    
+    this.targetElement = null; // 目标滚动元素
+
     // 节流处理滚动事件
     this.throttledScroll = throttle(this.performScroll.bind(this), 16); // ~60fps
   }
 
   /**
    * 激活滚动模式
+   * @param {HTMLElement} targetElement - 可选的目标滚动元素
    */
-  activate() {
+  activate(targetElement = null) {
     this.isActive = true;
+    this.targetElement = targetElement;
   }
 
   /**
@@ -23,6 +26,7 @@ export class ScrollController {
   deactivate() {
     this.isActive = false;
     this.currentVelocity = 0;
+    this.targetElement = null;
   }
 
   /**
@@ -30,7 +34,7 @@ export class ScrollController {
    */
   execute(gestureData) {
     if (!this.isActive) return;
-    
+
     this.currentVelocity = gestureData.velocity;
     this.throttledScroll();
   }
@@ -40,11 +44,23 @@ export class ScrollController {
    */
   performScroll() {
     if (Math.abs(this.currentVelocity) < 0.1) return;
-    
-    window.scrollBy({
-      top: this.currentVelocity,
-      behavior: 'auto'
-    });
+
+    // 如果指定了目标元素，则滚动该元素；否则查找滚动区域
+    if (this.targetElement) {
+      this.targetElement.scrollTop += this.currentVelocity;
+    } else {
+      // 自动查找 id="scroll-area" 的元素
+      const scrollArea = document.getElementById('scroll-area');
+      if (scrollArea) {
+        scrollArea.scrollTop += this.currentVelocity;
+      } else {
+        // 降级到全局滚动
+        window.scrollBy({
+          top: this.currentVelocity,
+          behavior: 'auto'
+        });
+      }
+    }
   }
 
   /**
@@ -53,7 +69,8 @@ export class ScrollController {
   getState() {
     return {
       active: this.isActive,
-      velocity: this.currentVelocity
+      velocity: this.currentVelocity,
+      hasTarget: !!this.targetElement
     };
   }
 }

@@ -12,19 +12,20 @@ export default function GestureDemo() {
   const [gestureActive, setGestureActive] = useState(false);
   const [currentGesture, setCurrentGesture] = useState(null);
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
-  
+  const [activeZone, setActiveZone] = useState(null); // 当前激活的区域
+
   // Demo area states
   const [clickCount, setClickCount] = useState(0);
   const [selectedText, setSelectedText] = useState('');
   const [zoomImage, setZoomImage] = useState(null);
-  
+
   // Controller instances
   const interpreterRef = useRef(null);
   const scrollControllerRef = useRef(null);
   const clickControllerRef = useRef(null);
   const selectionControllerRef = useRef(null);
   const zoomControllerRef = useRef(null);
-  
+
   // Initialize controllers
   useEffect(() => {
     interpreterRef.current = new GestureInterpreter();
@@ -32,330 +33,436 @@ export default function GestureDemo() {
     clickControllerRef.current = new ClickController();
     selectionControllerRef.current = new SelectionController();
     zoomControllerRef.current = new ZoomController();
-    
+
     // Setup controller callbacks
     clickControllerRef.current.onExecute = () => {
       setClickCount(prev => prev + 1);
     };
-    
+
     selectionControllerRef.current.onTextSelected = (text) => {
       setSelectedText(text);
     };
-    
+
     zoomControllerRef.current.onZoomChange = (imageId) => {
       setZoomImage(imageId);
     };
   }, []);
-  
+
+  // Activate/deactivate controllers based on gestureActive state
+  useEffect(() => {
+    if (gestureActive) {
+      // 默认不激活任何 controller，等待进入特定区域
+      console.log('✅ [GestureDemo] Gesture control enabled');
+    } else {
+      // Deactivate all controllers when gesture control is disabled
+      scrollControllerRef.current?.deactivate();
+      clickControllerRef.current?.deactivate();
+      selectionControllerRef.current?.deactivate();
+      setActiveZone(null);
+      console.log('🛑 [GestureDemo] Controllers deactivated');
+    }
+  }, [gestureActive]);
+
+  // 检测光标在哪个区域
+  const detectZone = (screenPos) => {
+    const element = document.elementFromPoint(screenPos.x, screenPos.y);
+    if (!element) {
+      console.warn('[detectZone] No element at position:', screenPos);
+      return null;
+    }
+
+    // 查找最近的区域容器
+    const zone = element.closest('[data-gesture-zone]');
+    const zoneName = zone ? zone.dataset.gestureZone : null;
+
+    // 调试：显示检测结果
+    if (zoneName) {
+      console.log(`[detectZone] Found zone: ${zoneName}, element:`, element.tagName);
+    }
+
+    return zoneName;
+  };
+
+  // 根据区域激活对应的 controller
+  useEffect(() => {
+    if (!gestureActive) return;
+
+    // 停用所有 controller
+    scrollControllerRef.current?.deactivate();
+    clickControllerRef.current?.deactivate();
+    selectionControllerRef.current?.deactivate();
+
+    // 根据区域激活特定 controller
+    switch (activeZone) {
+      case 'scroll':
+        scrollControllerRef.current?.activate();
+        console.log('📜 [GestureDemo] Scroll zone activated');
+        break;
+      case 'click':
+        clickControllerRef.current?.activate();
+        console.log('👆 [GestureDemo] Click zone activated');
+        break;
+      case 'selection':
+        selectionControllerRef.current?.activate();
+        console.log('✍️ [GestureDemo] Selection zone activated');
+        break;
+      case 'zoom':
+        // ZoomController 不需要 activate
+        console.log('🔍 [GestureDemo] Zoom zone activated');
+        break;
+    }
+  }, [activeZone, gestureActive]);
+
   // Handle gesture data from GestureControl
   const handleGestureData = (landmarks) => {
-    console.log('🔍 [GestureDemo] Received landmarks:', landmarks ? 'YES' : 'NO', landmarks?.length);
-    
     if (!interpreterRef.current) {
       console.warn('⚠️ [GestureDemo] Interpreter not initialized');
       return;
     }
-    
+
     const gestureData = interpreterRef.current.interpret(landmarks);
-    
-    console.log('🎯 [GestureDemo] Interpreted gesture:', gestureData);
-    
+
+    // 只在手势类型变化时输出日志，避免过度输出
+    if (gestureData.type !== currentGesture) {
+      console.log('🎯 [GestureDemo] Gesture changed:', gestureData.type);
+    }
+
     setCurrentGesture(gestureData.type);
-    
+
+    // 将手部坐标映射到屏幕坐标（用于虚拟光标）
+    let currentZone = activeZone; // 使用本地变量而不是状态
+    if (gestureData.position) {
+      const screenPos = {
+        x: gestureData.position.x * window.innerWidth,
+        y: gestureData.position.y * window.innerHeight
+      };
+      setCursorPosition(screenPos);
+
+      // 检测当前在哪个区域
+      const zone = detectZone(screenPos);
+      if (zone !== activeZone) {
+        setActiveZone(zone);
+        currentZone = zone; // 立即更新本地变量
+        console.log('🎯 [GestureDemo] Zone changed:', zone);
+      }
+    }
+
+    // 调试：显示当前状态
+    console.log(`[DEBUG] currentZone: ${currentZone}, gestureType: ${gestureData.type}`);
+
+    // 只在对应区域执行对应的手势
+    if (!currentZone) {
+      console.warn('⚠️ [GestureDemo] No active zone detected');
+      return;
+    }
+
     switch (gestureData.type) {
       case 'scroll':
-        console.log('📜 [GestureDemo] Executing scroll, velocity:', gestureData.velocity);
-        scrollControllerRef.current?.execute(gestureData);
-        setCursorPosition(gestureData.position);
-        break;
-        
-      case 'pointing':
-        console.log('👆 [GestureDemo] Executing click, clicking:', gestureData.clicking);
-        clickControllerRef.current?.execute(gestureData);
-        setCursorPosition(gestureData.position);
-        break;
-        
-      case 'selection-ready':
-        console.log('✍️ [GestureDemo] Selection ready');
-        selectionControllerRef.current?.execute(gestureData);
-        setCursorPosition(gestureData.position);
-        break;
-        
-      case 'zoom':
-        console.log('🔍 [GestureDemo] Executing zoom, scale:', gestureData.scale);
-        zoomControllerRef.current?.execute(gestureData);
-        if (gestureData.position) {
-          setCursorPosition(gestureData.position);
+        if (currentZone === 'scroll') {
+          console.log('✅ [GestureDemo] Executing scroll');
+          scrollControllerRef.current?.execute(gestureData);
         }
         break;
-        
+
+      case 'pointing':
+        if (currentZone === 'click') {
+          console.log('✅ [GestureDemo] Executing click');
+          clickControllerRef.current?.execute(gestureData);
+        }
+        break;
+
+      case 'selection-ready':
+        if (currentZone === 'selection') {
+          console.log('✅ [GestureDemo] Executing selection');
+          selectionControllerRef.current?.execute(gestureData);
+        }
+        break;
+
+      case 'zoom':
+        if (currentZone === 'zoom') {
+          console.log('✅ [GestureDemo] Executing zoom');
+          zoomControllerRef.current?.execute(gestureData);
+        }
+        break;
+
       case 'fist':
         console.log('✊ [GestureDemo] Fist detected - closing zoom/selection');
         zoomControllerRef.current?.close?.();
         selectionControllerRef.current?.reset?.();
         break;
-        
-      default:
-        if (gestureData.position) {
-          setCursorPosition(gestureData.position);
-        }
     }
   };
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Header */}
-      <header className="bg-black/40 backdrop-blur-sm border-b border-white/10 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-2">
-                手势控制演示系统
-              </h1>
-              <p className="text-purple-300">
-                Gesture Control Demo - Computer Vision Interaction
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-6">
-              {/* Current Gesture Indicator */}
-              <div className="bg-white/10 backdrop-blur-md rounded-xl px-6 py-3 border border-white/20">
-                <div className="text-sm text-purple-300 mb-1">当前手势</div>
-                <div className="text-2xl font-bold text-white">
-                  {currentGesture || '无手势'}
-                </div>
-              </div>
-              
-              {/* Start Button */}
-              <button
-                onClick={() => setGestureActive(!gestureActive)}
-                className={`
-                  px-8 py-4 rounded-xl font-semibold text-lg
-                  transition-all duration-300 transform hover:scale-105
-                  ${gestureActive 
-                    ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/50' 
-                    : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-500/50'
-                  }
-                `}
-              >
-                {gestureActive ? '🛑 停止控制' : '🚀 启动手势控制'}
-              </button>
-            </div>
+      {/* Fixed Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 p-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">手势控制演示</h1>
+            <p className="text-sm text-purple-300">当前区域: {activeZone || '无'} | 手势: {currentGesture || '无'}</p>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* Navigation */}
+            <nav className="flex gap-2">
+              <a href="#scroll" className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 rounded-lg transition-colors text-sm">📜 滚动</a>
+              <a href="#click" className="px-4 py-2 bg-green-500/20 hover:bg-green-500/40 text-green-300 rounded-lg transition-colors text-sm">👆 点击</a>
+              <a href="#selection" className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 rounded-lg transition-colors text-sm">✍️ 选择</a>
+              <a href="#zoom" className="px-4 py-2 bg-pink-500/20 hover:bg-pink-500/40 text-pink-300 rounded-lg transition-colors text-sm">🔍 缩放</a>
+            </nav>
+
+            {/* Start Button */}
+            <button
+              onClick={() => setGestureActive(!gestureActive)}
+              className={`
+                px-6 py-2 rounded-lg font-semibold text-sm
+                transition-all duration-300
+                ${gestureActive
+                  ? 'bg-red-500 hover:bg-red-600 text-white'
+                  : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white'
+                }
+              `}
+            >
+              {gestureActive ? '🛑 停止' : '🚀 启动'}
+            </button>
           </div>
         </div>
       </header>
       
-      {/* Main Demo Areas */}
-      <main className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Row 1: Scroll + Button */}
-        <div className="grid grid-cols-2 gap-6">
-          {/* Scroll Test Area */}
-          <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/10">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <span className="text-2xl">📜</span>
-                滚动测试区
-              </h2>
-              <span className="text-sm text-purple-300">手势: 手掌上下移动</span>
+
+      {/* Main Content - Full Screen Sections */}
+      <main className="pt-20">
+        {/* Section 1: Scroll Demo */}
+        <section
+          id="scroll"
+          data-gesture-zone="scroll"
+          className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-slate-900 flex items-center justify-center p-8"
+        >
+          <div className="max-w-4xl w-full">
+            <div className="text-center mb-12">
+              <div className="text-8xl mb-6">📜</div>
+              <h2 className="text-5xl font-bold text-white mb-4">滚动控制</h2>
+              <p className="text-2xl text-blue-200 mb-2">张开手掌，上下移动</p>
+              <p className="text-lg text-blue-300">Scroll with Open Palm</p>
             </div>
-            
-            <div 
+
+            <div
               id="scroll-area"
-              className="h-96 overflow-y-auto bg-black/20 rounded-xl p-4 space-y-4 custom-scrollbar"
+              className="h-[600px] overflow-y-auto bg-black/40 backdrop-blur-md rounded-3xl p-8 space-y-6 border-2 border-blue-400/30"
+              style={{ scrollbarWidth: 'thin', scrollbarColor: '#3b82f6 #1e293b' }}
             >
               {Array.from({ length: 20 }, (_, i) => (
-                <div key={i} className="bg-white/5 rounded-lg p-4 border border-white/10">
-                  <h3 className="text-white font-semibold mb-2">内容块 {i + 1}</h3>
-                  <p className="text-gray-300 text-sm">
+                <div key={i} className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-blue-400/20 hover:border-blue-400/50 transition-all">
+                  <h3 className="text-2xl font-bold text-white mb-3">内容块 {i + 1}</h3>
+                  <p className="text-lg text-gray-200 leading-relaxed">
                     这是一段测试文本。使用手势控制滚动页面，体验无接触交互的便利性。
                     通过计算机视觉技术，我们可以实现更自然的人机交互方式。
+                    在医疗、展览、工业等场景中，手势控制可以避免接触污染，提高操作效率。
                   </p>
                 </div>
               ))}
             </div>
-          </div>
-          
-          {/* Button Test Area */}
-          <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/10">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <span className="text-2xl">👆</span>
-                按钮测试区
-              </h2>
-              <span className="text-sm text-purple-300">手势: 食指点击</span>
+
+            <div className="text-center mt-8">
+              <a href="#click" className="inline-block px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-colors">
+                下一个演示 →
+              </a>
             </div>
-            
-            <div className="space-y-6">
+          </div>
+        </section>
+
+        {/* Section 2: Click Demo */}
+        <section
+          id="click"
+          data-gesture-zone="click"
+          className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-slate-900 flex items-center justify-center p-8"
+        >
+          <div className="max-w-4xl w-full">
+            <div className="text-center mb-12">
+              <div className="text-8xl mb-6">👆</div>
+              <h2 className="text-5xl font-bold text-white mb-4">点击控制</h2>
+              <p className="text-2xl text-green-200 mb-2">食指指向目标，向前戳</p>
+              <p className="text-lg text-green-300">Point and Click</p>
+            </div>
+
+            <div className="space-y-8">
               {/* Click Counter */}
-              <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl p-6 border border-purple-400/30">
+              <div className="bg-gradient-to-br from-green-500/30 to-emerald-500/30 backdrop-blur-md rounded-3xl p-12 border-2 border-green-400/30">
                 <div className="text-center">
-                  <div className="text-sm text-purple-300 mb-2">总点击次数</div>
-                  <div className="text-6xl font-bold text-white mb-2">{clickCount}</div>
-                  <div className="text-xs text-gray-400">使用手势点击下方按钮</div>
+                  <div className="text-xl text-green-200 mb-4">总点击次数</div>
+                  <div className="text-9xl font-bold text-white mb-4">{clickCount}</div>
+                  <div className="text-lg text-gray-300">使用手势点击下方按钮</div>
                 </div>
               </div>
-              
+
               {/* Clickable Buttons */}
-              <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-6">
                 <button
                   data-clickable="button-1"
-                  className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold py-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+                  className="h-32 bg-gradient-to-br from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold text-2xl rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-2xl"
                 >
-                  按钮 1 - 点我试试
+                  按钮 1
                 </button>
-                
+
                 <button
                   data-clickable="button-2"
-                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold py-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+                  className="h-32 bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold text-2xl rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-2xl"
                 >
-                  按钮 2 - 用手势点击
+                  按钮 2
                 </button>
-                
+
                 <button
                   data-clickable="button-3"
-                  className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold py-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+                  className="h-32 bg-gradient-to-br from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold text-2xl rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-2xl"
                 >
-                  按钮 3 - 无接触交互
+                  按钮 3
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-        
-        {/* Row 2: Text Selection + Image Zoom */}
-        <div className="grid grid-cols-2 gap-6">
-          {/* Text Selection Area */}
-          <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/10">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <span className="text-2xl">✍️</span>
-                文字选择区
-              </h2>
-              <span className="text-sm text-purple-300">手势: 双指框选</span>
+
+            <div className="text-center mt-8">
+              <a href="#selection" className="inline-block px-8 py-4 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl transition-colors">
+                下一个演示 →
+              </a>
             </div>
-            
-            <div className="space-y-4">
-              {/* Selectable Text */}
-              <div 
+          </div>
+        </section>
+
+        {/* Section 3: Text Selection Demo */}
+        <section
+          id="selection"
+          data-gesture-zone="selection"
+          className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-slate-900 flex items-center justify-center p-8"
+        >
+          <div className="max-w-4xl w-full">
+            <div className="text-center mb-12">
+              <div className="text-8xl mb-6">✍️</div>
+              <h2 className="text-5xl font-bold text-white mb-4">文本选择</h2>
+              <p className="text-2xl text-purple-200 mb-2">食指停留2秒后拖拽</p>
+              <p className="text-lg text-purple-300">Hover and Drag to Select</p>
+            </div>
+
+            <div className="space-y-8">
+              {/* Selectable Text Area */}
+              <div
                 data-selectable="text-area"
-                className="bg-black/20 rounded-xl p-6 min-h-48 leading-relaxed text-gray-200 select-none"
+                className="bg-black/40 backdrop-blur-md rounded-3xl p-12 border-2 border-purple-400/30 min-h-[400px]"
               >
-                <p className="mb-4">
-                  计算机视觉技术正在改变我们与设备交互的方式。通过手势识别，
-                  我们可以实现更自然、更直观的人机交互体验。
-                </p>
-                <p className="mb-4">
-                  这项技术在医疗、教育、娱乐等多个领域都有广泛的应用前景。
-                  想象一下，在手术室里，医生可以通过手势浏览医学影像，
-                  而无需触碰任何设备，保持无菌环境。
-                </p>
-                <p>
-                  未来，手势控制将成为人机交互的重要组成部分，
-                  为用户提供更加便捷和高效的操作方式。
-                </p>
+                <div className="text-xl text-gray-100 leading-relaxed space-y-6">
+                  <p>
+                    计算机视觉技术正在改变我们与设备交互的方式。通过手势识别，
+                    我们可以实现更自然、更直观的人机交互体验。MediaPipe 提供了强大的手部追踪能力，
+                    能够实时检测 21 个手部关键点。
+                  </p>
+                  <p>
+                    这项技术在医疗、教育、娱乐等多个领域都有广泛的应用前景。
+                    想象一下，在手术室里，医生可以通过手势浏览医学影像，
+                    而无需触碰任何设备，保持无菌环境。在教育场景中，教师可以通过手势控制课件演示。
+                  </p>
+                  <p>
+                    未来，手势控制将成为人机交互的重要组成部分，
+                    为用户提供更加便捷和高效的操作方式。结合 AI 和深度学习技术，
+                    手势识别的准确性和鲁棒性将持续提升。
+                  </p>
+                </div>
               </div>
-              
+
               {/* Selected Text Display */}
-              <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl p-4 border border-purple-400/30 min-h-24">
-                <div className="text-sm text-purple-300 mb-2">已选择的文字:</div>
-                <div className="text-white font-medium">
+              <div className="bg-gradient-to-br from-purple-500/30 to-pink-500/30 backdrop-blur-md rounded-3xl p-8 border-2 border-purple-400/30 min-h-32">
+                <div className="text-xl text-purple-200 mb-4">已选择的文字:</div>
+                <div className="text-2xl text-white font-medium">
                   {selectedText || '（使用手势选择上方文字）'}
                 </div>
               </div>
             </div>
-          </div>
-          
-          {/* Image Zoom Area */}
-          <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/10">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <span className="text-2xl">🔍</span>
-                图片缩放区
-              </h2>
-              <span className="text-sm text-purple-300">手势: 捏合放大</span>
+
+            <div className="text-center mt-8">
+              <a href="#zoom" className="inline-block px-8 py-4 bg-purple-500 hover:bg-purple-600 text-white font-semibold rounded-xl transition-colors">
+                下一个演示 →
+              </a>
             </div>
-            
-            <div className="space-y-4">
+          </div>
+        </section>
+
+        {/* Section 4: Image Zoom Demo */}
+        <section
+          id="zoom"
+          data-gesture-zone="zoom"
+          className="min-h-screen bg-gradient-to-br from-pink-900 via-pink-800 to-slate-900 flex items-center justify-center p-8"
+        >
+          <div className="max-w-4xl w-full">
+            <div className="text-center mb-12">
+              <div className="text-8xl mb-6">🔍</div>
+              <h2 className="text-5xl font-bold text-white mb-4">图片缩放</h2>
+              <p className="text-2xl text-pink-200 mb-2">两指捏合缩放</p>
+              <p className="text-lg text-pink-300">Pinch to Zoom</p>
+            </div>
+
+            <div className="space-y-8">
               {/* Image Grid */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-6">
                 {['image-1', 'image-2', 'image-3'].map((id, index) => (
                   <div
                     key={id}
                     data-zoomable={id}
                     className={`
-                      relative aspect-square rounded-xl overflow-hidden cursor-pointer
+                      relative aspect-square rounded-2xl overflow-hidden cursor-pointer
                       transition-all duration-300 transform hover:scale-105
-                      ${zoomImage === id ? 'ring-4 ring-purple-500 scale-110' : ''}
+                      ${zoomImage === id ? 'ring-4 ring-pink-400 scale-110' : ''}
                     `}
                   >
-                    <div 
+                    <div
                       className={`
-                        w-full h-full flex items-center justify-center text-6xl
-                        ${index === 0 ? 'bg-gradient-to-br from-blue-400 to-blue-600' : ''}
-                        ${index === 1 ? 'bg-gradient-to-br from-green-400 to-green-600' : ''}
-                        ${index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600' : ''}
+                        w-full h-full flex items-center justify-center
+                        ${index === 0 ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-8xl' : ''}
+                        ${index === 1 ? 'bg-gradient-to-br from-green-400 to-green-600 text-8xl' : ''}
+                        ${index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-8xl' : ''}
                       `}
                     >
-                      {['🌄', '🌊', '🌅'][index]}
+                      {['🌄', '🎨', '🚀'][index]}
                     </div>
                   </div>
                 ))}
               </div>
-              
-              {/* Zoom Status */}
-              <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl p-4 border border-purple-400/30">
-                <div className="text-sm text-purple-300 mb-2">当前缩放:</div>
-                <div className="text-white font-medium text-lg">
-                  {zoomImage ? `图片 ${zoomImage.split('-')[1]} - 已放大` : '（使用捏合手势放大图片）'}
+
+              {/* Zoom Instruction */}
+              <div className="bg-gradient-to-br from-pink-500/30 to-purple-500/30 backdrop-blur-md rounded-3xl p-8 border-2 border-pink-400/30">
+                <div className="text-center">
+                  <p className="text-xl text-pink-200 mb-2">
+                    使用两指捏合手势放大图片
+                  </p>
+                  <p className="text-lg text-gray-300">
+                    当前状态: {zoomImage ? `正在查看 ${zoomImage}` : '未选择图片'}
+                  </p>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-        
-        {/* Instructions Panel */}
-        <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 backdrop-blur-md rounded-2xl p-6 border border-purple-400/30">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <span className="text-2xl">📖</span>
-            使用说明
-          </h3>
-          <div className="grid grid-cols-4 gap-4">
-            <div className="bg-black/20 rounded-xl p-4">
-              <div className="text-3xl mb-2">📜</div>
-              <div className="text-white font-semibold mb-1">滚动</div>
-              <div className="text-sm text-gray-300">张开手掌上下移动</div>
-            </div>
-            <div className="bg-black/20 rounded-xl p-4">
-              <div className="text-3xl mb-2">👆</div>
-              <div className="text-white font-semibold mb-1">点击</div>
-              <div className="text-sm text-gray-300">食指指向目标</div>
-            </div>
-            <div className="bg-black/20 rounded-xl p-4">
-              <div className="text-3xl mb-2">✍️</div>
-              <div className="text-white font-semibold mb-1">选择</div>
-              <div className="text-sm text-gray-300">双指框选文字</div>
-            </div>
-            <div className="bg-black/20 rounded-xl p-4">
-              <div className="text-3xl mb-2">🔍</div>
-              <div className="text-white font-semibold mb-1">缩放</div>
-              <div className="text-sm text-gray-300">捏合手势放大</div>
+
+            <div className="text-center mt-8">
+              <a href="#scroll" className="inline-block px-8 py-4 bg-pink-500 hover:bg-pink-600 text-white font-semibold rounded-xl transition-colors">
+                返回第一个演示 →
+              </a>
             </div>
           </div>
-        </div>
+        </section>
       </main>
-      
+
       {/* Virtual Cursor */}
-      {gestureActive && (
-        <VirtualCursor position={cursorPosition} />
+      {gestureActive && cursorPosition.x > 0 && (
+        <VirtualCursor
+          position={cursorPosition}
+          state={currentGesture || 'default'}
+        />
       )}
-      
+
       {/* Gesture Control (hidden UI, only processing) */}
       <GestureControl
         isActive={gestureActive}
         onLandmarks={handleGestureData}
         hideUI={true}
       />
-      
+
       {/* Custom Scrollbar Styles */}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {

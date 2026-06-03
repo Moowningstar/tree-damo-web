@@ -122,12 +122,20 @@ export class ZoomController {
   }
 
   /**
+   * 执行缩放控制（统一接口）
+   * @param {Object} gestureData - { distance, distanceChange, scale }
+   */
+  execute(gestureData) {
+    this.handleZoom(gestureData);
+  }
+
+  /**
    * 处理缩放手势
    * @param {Object} gestureData - { distance, distanceChange }
    */
   handleZoom(gestureData) {
     if (this.state !== 'zooming') return;
-    
+
     // 设置基准距离（首次检测）
     if (this.baseDistance === null) {
       this.baseDistance = gestureData.distance;
@@ -137,7 +145,7 @@ export class ZoomController {
     // 计算缩放比例
     const ratio = gestureData.distance / this.baseDistance;
     const newScale = Math.max(this.minScale, Math.min(this.maxScale, ratio));
-    
+
     this.currentScale = newScale;
     this.applyScale();
   }

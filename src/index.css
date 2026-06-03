@@ -75,7 +75,119 @@ input, textarea {
   border: 3px solid #3b82f6;
   pointer-events: none;
   z-index: 9998;
-  transition: all 0.1s ease;
+  transition: all 0.15s ease;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+}
+
+/* 光标内部指示器 */
+.virtual-cursor-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3b82f6;
+}
+
+/* 默认状态 */
+.virtual-cursor--default {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+}
+
+/* 滚动状态 */
+.virtual-cursor--scroll {
+  background: rgba(34, 197, 94, 0.3);
+  border-color: #22c55e;
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
+}
+
+.virtual-cursor--scroll .virtual-cursor-inner {
+  background: #22c55e;
+  animation: pulseGreen 1s ease infinite;
+}
+
+/* 指向/点击状态 */
+.virtual-cursor--pointing {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #ef4444;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.virtual-cursor--pointing .virtual-cursor-inner {
+  background: #ef4444;
+  animation: pulseRed 0.5s ease infinite;
+}
+
+/* 选择状态 */
+.virtual-cursor--selection-ready {
+  background: rgba(168, 85, 247, 0.3);
+  border-color: #a855f7;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+}
+
+.virtual-cursor--selection-ready .virtual-cursor-inner {
+  background: #a855f7;
+  border-radius: 2px;
+}
+
+/* 缩放状态 */
+.virtual-cursor--zoom {
+  background: rgba(234, 179, 8, 0.3);
+  border-color: #eab308;
+  box-shadow: 0 0 20px rgba(234, 179, 8, 0.6);
+  transform: translate(-50%, -50%) scale(1.2);
+}
+
+.virtual-cursor--zoom .virtual-cursor-inner {
+  background: #eab308;
+  animation: pulseYellow 0.8s ease infinite;
+}
+
+/* 握拳状态 */
+.virtual-cursor--fist {
+  background: rgba(239, 68, 68, 0.4);
+  border-color: #ef4444;
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.8);
+  transform: translate(-50%, -50%) scale(0.8);
+}
+
+/* 动画效果 */
+@keyframes pulseGreen {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0.5;
+  }
+}
+
+@keyframes pulseRed {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3);
+    opacity: 0.7;
+  }
+}
+
+@keyframes pulseYellow {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.4);
+    opacity: 0.6;
+  }
 }
 
 .virtual-cursor--hovering {
