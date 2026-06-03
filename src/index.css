@@ -220,6 +220,34 @@ input, textarea {
   transition: all 0.2s ease;
 }
 
+/* Virtual Cursor Hover Effect - 元素被虚拟光标悬停时的效果 */
+.virtual-cursor-hover {
+  outline: 3px solid rgba(59, 130, 246, 0.6) !important;
+  outline-offset: 2px;
+  transform: scale(1.05) !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4) !important;
+}
+
+/* 按钮特定悬停效果 */
+button.virtual-cursor-hover {
+  filter: brightness(1.2);
+  cursor: pointer;
+}
+
+/* 图片特定悬停效果 */
+[data-zoomable].virtual-cursor-hover {
+  transform: scale(1.1) !important;
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.6) !important;
+  z-index: 10;
+}
+
+/* 文本区域悬停效果 */
+[data-selectable].virtual-cursor-hover {
+  background: rgba(168, 85, 247, 0.05) !important;
+  outline-color: rgba(168, 85, 247, 0.6) !important;
+}
+
 /* Gesture Clicking Animation */
 .gesture-clicking {
   transform: scale(0.95);

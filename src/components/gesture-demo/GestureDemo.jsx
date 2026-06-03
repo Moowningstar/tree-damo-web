@@ -8,13 +8,14 @@ import ZoomController from './controllers/ZoomController';
 import VirtualCursor from './VirtualCursor';
 
 export default function GestureDemo() {
-  // Core state
+  // 核心状态
   const [gestureActive, setGestureActive] = useState(false);
   const [currentGesture, setCurrentGesture] = useState(null);
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
-  const [activeZone, setActiveZone] = useState(null); // 当前激活的区域
+  const [activeZone, setActiveZone] = useState(null);
+  const [hoveredElement, setHoveredElement] = useState(null); // 当前悬停的元素
 
-  // Demo area states
+  // 演示区域状态
   const [clickCount, setClickCount] = useState(0);
   const [selectedText, setSelectedText] = useState('');
   const [zoomImage, setZoomImage] = useState(null);
@@ -55,9 +56,16 @@ export default function GestureDemo() {
       clickControllerRef.current?.deactivate();
       selectionControllerRef.current?.deactivate();
       setActiveZone(null);
+
+      // 清除悬停样式
+      if (hoveredElement) {
+        hoveredElement.classList.remove('virtual-cursor-hover');
+        setHoveredElement(null);
+      }
+
       console.log('🛑 [GestureDemo] Controllers deactivated');
     }
-  }, [gestureActive]);
+  }, [gestureActive, hoveredElement]);
 
   // 检测光标在哪个区域
   const detectZone = (screenPos) => {
@@ -77,6 +85,39 @@ export default function GestureDemo() {
     }
 
     return zoneName;
+  };
+
+  // 更新悬停元素并添加/移除悬停样式
+  const updateHoveredElement = (screenPos) => {
+    const element = document.elementFromPoint(screenPos.x, screenPos.y);
+
+    if (element !== hoveredElement) {
+      // 移除旧元素的悬停样式
+      if (hoveredElement) {
+        hoveredElement.classList.remove('virtual-cursor-hover');
+      }
+
+      // 添加新元素的悬停样式
+      if (element && isInteractiveElement(element)) {
+        element.classList.add('virtual-cursor-hover');
+        setHoveredElement(element);
+      } else {
+        setHoveredElement(null);
+      }
+    }
+  };
+
+  // 判断元素是否可交互
+  const isInteractiveElement = (element) => {
+    const interactiveTags = ['BUTTON', 'A', 'INPUT', 'TEXTAREA'];
+    const interactiveSelectors = [
+      '[data-clickable]',
+      '[data-selectable]',
+      '[data-zoomable]'
+    ];
+
+    return interactiveTags.includes(element.tagName) ||
+           interactiveSelectors.some(selector => element.matches(selector));
   };
 
   // 根据区域激活对应的 controller
@@ -122,10 +163,13 @@ export default function GestureDemo() {
     let currentZone = activeZone;
     if (gestureData.position) {
       const screenPos = {
-        x: gestureData.position.x * window.innerWidth,
+        x: (1 - gestureData.position.x) * window.innerWidth,  // 镜像翻转 X 轴
         y: gestureData.position.y * window.innerHeight
       };
       setCursorPosition(screenPos);
+
+      // 更新悬停元素（添加悬停样式）
+      updateHoveredElement(screenPos);
 
       // 检测当前在哪个区域
       const zone = detectZone(screenPos);
@@ -138,7 +182,8 @@ export default function GestureDemo() {
 
     // 只在对应区域执行对应的手势（区域优先级过滤）
     if (!currentZone) {
-      console.warn('⚠️ [GestureDemo] No active zone detected');
+      // 不在任何区域时，只显示虚拟光标，不执行任何动作
+      // 这是正常情况，不需要警告
       return;
     }
 
